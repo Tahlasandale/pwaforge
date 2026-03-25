@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PwaForge</title><link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#6366f1"></head><body><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -37,6 +37,15 @@
         .glass-modal {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(12px);
+        }
+
+        /* Animation d'apparition de la modale */
+        @keyframes scaleIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .modal-animate {
+            animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
     </style>
 </head>
@@ -100,7 +109,7 @@
                     <label for="iconInput" id="dropZone" class="flex flex-col items-center justify-center w-full aspect-square bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition-all overflow-hidden relative">
                         <div id="emptyIconState" class="flex flex-col items-center text-slate-400">
                             <i data-lucide="image-plus" class="w-8 h-8 mb-2"></i>
-                            <span class="text-[10px] font-bold">Choisir une image</span>
+                            <span class="text-[10px] font-bold text-center px-4">Choisir une image<br><span class="text-[9px] font-normal text-slate-400">(Couleurs extraites auto)</span></span>
                         </div>
                         <img id="iconPreview" class="hidden absolute inset-0 w-full h-full object-cover">
                     </label>
@@ -139,7 +148,7 @@
     <!-- Modale de Configuration -->
     <div id="settingsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="toggleModal('settingsModal')"></div>
-        <div class="glass-modal bg-white w-full max-w-md rounded-[32px] shadow-2xl p-8 relative overflow-hidden border border-white">
+        <div class="glass-modal bg-white w-full max-w-md rounded-[32px] shadow-2xl p-8 relative overflow-hidden border border-white modal-animate">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-black text-slate-900">CONFIGURATION</h2>
                 <button onclick="toggleModal('settingsModal')" class="p-2 hover:bg-slate-100 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
@@ -176,6 +185,42 @@
                     Sauvegarder
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modale de Succès -->
+    <div id="successModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md" onclick="toggleModal('successModal')"></div>
+        <div class="glass-modal bg-white w-full max-w-lg rounded-[32px] shadow-2xl p-8 relative overflow-hidden text-center z-10 border border-slate-100 modal-animate">
+            <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-100/50">
+                <i data-lucide="check-circle-2" class="w-10 h-10 text-green-500"></i>
+            </div>
+            
+            <h2 class="text-2xl font-black text-slate-900 mb-2">Déploiement Terminé !</h2>
+            <p class="text-slate-500 text-sm mb-6">Félicitations, Seigneur Bison. Votre PWA est désormais propulsée sur les serveurs mondiaux.</p>
+
+            <div class="bg-slate-50 p-4 rounded-2xl mb-6 border border-slate-200 flex items-center justify-between gap-4 group">
+                <div class="flex-grow overflow-hidden text-left">
+                    <span class="block text-[10px] font-bold text-slate-400 uppercase mb-1">URL de Production</span>
+                    <a id="successLiveUrl" href="#" target="_blank" class="text-indigo-600 font-bold truncate hover:underline code-font text-sm block">https://...</a>
+                </div>
+                <button onclick="copyLink()" class="p-2.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 hover:text-indigo-600 text-slate-500 transition-all flex-shrink-0" title="Copier le lien">
+                    <i data-lucide="copy" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <a id="successRepoBtn" href="#" target="_blank" class="flex items-center justify-center gap-2 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all">
+                    <i data-lucide="github" class="w-5 h-5"></i> Dépôt GitHub
+                </a>
+                <a id="successVisitBtn" href="#" target="_blank" class="flex items-center justify-center gap-2 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-200">
+                    <i data-lucide="external-link" class="w-5 h-5"></i> Ouvrir l'App
+                </a>
+            </div>
+            
+            <button onclick="toggleModal('successModal')" class="mt-8 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors">
+                Fermer
+            </button>
         </div>
     </div>
 
@@ -220,7 +265,20 @@
 
         function toggleModal(id) {
             const m = document.getElementById(id);
-            if (m) m.classList.toggle('hidden');
+            if (m) {
+                if (m.classList.contains('hidden')) {
+                    m.classList.remove('hidden');
+                    // Assurer l'application de l'animation en forçant le reflow
+                    const content = m.querySelector('.glass-modal');
+                    if (content) {
+                        content.classList.remove('modal-animate');
+                        void content.offsetWidth;
+                        content.classList.add('modal-animate');
+                    }
+                } else {
+                    m.classList.add('hidden');
+                }
+            }
         }
 
         function saveSettings() {
@@ -228,6 +286,89 @@
             localStorage.setItem('pwa_forge_v', document.getElementById('v_token_input').value.trim());
             loadSettings();
             toggleModal('settingsModal');
+        }
+
+        function copyLink() {
+            const el = document.getElementById('successLiveUrl');
+            if(!el) return;
+            const text = el.innerText;
+            // Hack de compatibilité pour copier
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                addLog('Lien copié dans le presse-papier.', 'success');
+            } catch (err) {
+                console.error(err);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        // ============================================================
+        //  COULEURS INTELLIGENTES
+        // ============================================================
+        function extractDominantColors(imgSrc) {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                
+                try {
+                    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                    
+                    // Détection Couleur de Fond (Coin Haut-Gauche)
+                    let bgColorHex = "#ffffff";
+                    if (data[3] > 200) { // S'il n'y a pas de transparence prononcée
+                        bgColorHex = rgbToHex(data[0], data[1], data[2]);
+                    }
+
+                    // Détection Couleur Dominante (pour le thème)
+                    const colorMap = {};
+                    let maxCount = 0;
+                    let dominantHex = "#6366f1"; // Couleur par défaut de Forge
+
+                    // On parcourt les pixels (saut de 16 = 4 pixels pour la perf)
+                    for (let i = 0; i < data.length; i += 16) {
+                        let r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+                        if (a < 128) continue; // Ignorer transparence
+                        if (r > 240 && g > 240 && b > 240) continue; // Ignorer le blanc absolu
+                        if (r < 15 && g < 15 && b < 15) continue;    // Ignorer le noir absolu
+
+                        // Arrondi pour regrouper les teintes proches
+                        let rR = Math.round(r / 10) * 10;
+                        let gR = Math.round(g / 10) * 10;
+                        let bR = Math.round(b / 10) * 10;
+                        let key = `${rR},${gR},${bR}`;
+
+                        colorMap[key] = (colorMap[key] || 0) + 1;
+                        if (colorMap[key] > maxCount) {
+                            maxCount = colorMap[key];
+                            dominantHex = rgbToHex(r, g, b);
+                        }
+                    }
+
+                    document.getElementById('themeColor').value = dominantHex;
+                    document.getElementById('bgColor').value = bgColorHex;
+                    
+                    if (document.getElementById('consoleWrapper').classList.contains('hidden')) {
+                        document.getElementById('consoleWrapper').classList.remove('hidden');
+                    }
+                    addLog(`Analyse de l'icône : Thème [${dominantHex}] | Fond [${bgColorHex}]`, 'info');
+
+                } catch(err) {
+                    console.warn("Impossible d'extraire les couleurs", err);
+                }
+            };
+            img.src = imgSrc;
+        }
+
+        function rgbToHex(r, g, b) {
+            return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1).padStart(6, '0');
         }
 
         function handleImage(e) {
@@ -240,6 +381,9 @@
                 const empty = document.getElementById('emptyIconState');
                 if (preview) { preview.src = ev.target.result; preview.classList.remove('hidden'); }
                 if (empty) empty.classList.add('hidden');
+                
+                // Lancement de l'extraction des couleurs
+                extractDominantColors(ev.target.result);
             };
             reader.readAsDataURL(file);
         }
@@ -272,7 +416,6 @@
             });
         }
 
-        // Convertit un Blob en base64 (sans le préfixe data:...)
         function blobToBase64(blob) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -282,7 +425,6 @@
             });
         }
 
-        // Encode une chaîne UTF-8 en base64 (compatibilité caractères non-ASCII)
         function strToBase64(str) {
             return btoa(unescape(encodeURIComponent(str)));
         }
@@ -325,7 +467,7 @@
                 '  });',
                 '}',
                 '<\/script></body></html>'
-            ].join('');
+            ].join('\n');
 
             const swContent = [
                 "const C='pwa-v1';",
@@ -335,9 +477,8 @@
                 "self.addEventListener('fetch',e=>e.respondWith(",
                 "  caches.match(e.request).then(r=>r||fetch(e.request))",
                 "));"
-            ].join('');
+            ].join('\n');
 
-            // Met à jour le README avec le nom réel de l'app
             const readmeContent = state.codes.readme.replace(/^# .*/m, `# ${appName}`);
 
             return {
@@ -366,7 +507,7 @@
         }
 
         // ============================================================
-        //  API FETCH DIRECT — sans proxy (GitHub & Vercel supportent CORS)
+        //  API FETCH DIRECT
         // ============================================================
         async function apiFetch(url, options = {}) {
             const response = await fetch(url, options);
@@ -381,17 +522,15 @@
             return data;
         }
 
-        // Slugifie le nom de l'app pour en faire un nom de dépôt valide
         function slugify(str) {
             return str
-                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // retire les accents
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
                 .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')   // remplace les caractères spéciaux par -
-                .replace(/^-+|-+$/g, '')        // retire les - en début/fin
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '')
                 || 'pwa-app';
         }
 
-        // Vérifie si un repo GitHub existe déjà
         async function repoExists(token, username, repoName) {
             const res = await fetch(`https://api.github.com/repos/${username}/${repoName}`, {
                 headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
@@ -399,15 +538,14 @@
             return res.status === 200;
         }
 
-        // Résout un nom de dépôt disponible (ajoute la date si déjà pris)
         async function resolveRepoName(token, username, appName) {
             const base = slugify(appName);
             if (!(await repoExists(token, username, base))) return base;
             const dated = `${base}-${new Date().toISOString().slice(0,10).replace(/-/g,'')}`;
             if (!(await repoExists(token, username, dated))) return dated;
-            // En dernier recours : timestamp complet
             return `${base}-${Date.now()}`;
         }
+
         async function getGitHubUser(token) {
             return apiFetch('https://api.github.com/user', {
                 headers: {
@@ -417,7 +555,6 @@
             });
         }
 
-        // -- GITHUB : crée un dépôt public --
         async function createGitHubRepo(token, repoName) {
             return apiFetch('https://api.github.com/user/repos', {
                 method: 'POST',
@@ -430,7 +567,6 @@
             });
         }
 
-        // -- GITHUB : pousse un fichier dans le dépôt --
         async function pushFileToGitHub(token, fullRepoName, filePath, base64Content, sha = null) {
             const body = { message: `feat: add ${filePath}`, content: base64Content };
             if (sha) body.sha = sha;
@@ -445,18 +581,12 @@
             });
         }
 
-        // ============================================================
-        //  VERCEL : déploiement direct par fichiers (sans gitSource)
-        //  Utilise l'API v13 avec tableau "files" inline
-        // ============================================================
         async function deployToVercel(token, projectName, files) {
-            // Prépare les fichiers au format attendu par l'API Vercel
             const vercelFiles = [];
             for (const [name, { content, binary }] of Object.entries(files)) {
                 let data;
                 if (binary) {
                     data = await blobToBase64(content);
-                    // Vercel attend les binaires en base64 avec l'encoding indiqué
                     vercelFiles.push({ file: name, data, encoding: 'base64' });
                 } else {
                     vercelFiles.push({ file: name, data: content });
@@ -477,7 +607,6 @@
             });
         }
 
-        // -- POLL Vercel jusqu'à ce que le déploiement soit prêt --
         async function waitForVercelDeployment(token, deploymentId, maxAttempts = 20) {
             for (let i = 0; i < maxAttempts; i++) {
                 await new Promise(r => setTimeout(r, 3000));
@@ -497,7 +626,7 @@
             const gh = localStorage.getItem('pwa_forge_gh');
             const v  = localStorage.getItem('pwa_forge_v');
             if (!gh || !v) { alert("Configurez vos tokens d'abord !"); toggleModal('settingsModal'); return; }
-            if (!state.iconFile) return alert('Une icône est requise pour la forge.');
+            if (!state.iconFile) return alert("Une icône est requise pour la forge, Seigneur Bison.");
 
             const btn = document.getElementById('mainDeployBtn');
             const consoleArea = document.getElementById('consoleWrapper');
@@ -531,7 +660,7 @@
                 }
                 addLog('GitHub : tous les fichiers sont synchronisés.', 'success');
 
-                // 3. Déploiement Vercel (fichiers directs, sans dépendance GitHub)
+                // 3. Déploiement Vercel direct
                 addLog('Vercel : envoi des fichiers en déploiement direct...');
                 const vData = await deployToVercel(v, repoName, files);
                 addLog(`Vercel : déploiement initié (id: ${vData.id})`);
@@ -541,9 +670,32 @@
                 const ready = await waitForVercelDeployment(v, vData.id);
                 const liveUrl = 'https://' + (ready.url || ready.alias?.[0] || vData.url);
 
-                addLog('--- MISSION ACCOMPLIE ---', 'success');
+                // 5. LIAISON GITHUB <-> VERCEL (Pour le CI/CD automatique)
+                addLog('Vercel : tentative de liaison automatique du dépôt GitHub...');
+                try {
+                    // Utiliser le nom du projet créé par Vercel ou repoName en fallback
+                    const vProjectName = vData.name || repoName;
+                    await apiFetch(`https://api.vercel.com/v9/projects/${vProjectName}`, {
+                        method: 'PATCH',
+                        headers: { 'Authorization': `Bearer ${v}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ gitRepository: { type: 'github', repo: repoData.full_name } })
+                    });
+                    addLog('Vercel : Dépôt lié avec succès ! Les futurs push se déploieront automatiquement.', 'success');
+                } catch (linkErr) {
+                    addLog('Note: La liaison automatique a échoué. Assurez-vous que l\'App Vercel est autorisée sur vos dépôts GitHub.', 'warn');
+                    console.warn("Liaison Github-Vercel échouée:", linkErr);
+                }
+
+                addLog('--- MISSION ACCOMPLIE SEIGNEUR BISON ---', 'success');
                 addLog('URL LIVE : ' + liveUrl, 'success');
-                setTimeout(() => window.open(liveUrl, '_blank'), 1500);
+
+                // 6. Affichage de la Super Modale de Succès
+                document.getElementById('successLiveUrl').innerText = liveUrl;
+                document.getElementById('successLiveUrl').href = liveUrl;
+                document.getElementById('successVisitBtn').href = liveUrl;
+                document.getElementById('successRepoBtn').href = repoData.html_url;
+                
+                toggleModal('successModal');
 
             } catch (err) {
                 addLog('ÉCHEC : ' + err.message, 'error');
@@ -556,4 +708,4 @@
         }
     </script>
 </body>
-</html><script>if ("serviceWorker" in navigator) {  window.addEventListener("load", () => {    navigator.serviceWorker.register("/sw.js").catch(e => console.warn("SW:", e));  });}</script></body></html>
+</html>
