@@ -1,0 +1,559 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PwaForge</title><link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#6366f1"></head><body><!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Forge & Deploy | Seigneur Bison Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; overflow: hidden; }
+        .code-font { font-family: 'Fira Code', monospace; }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+
+        .editor-container textarea {
+            background: #0f172a;
+            color: #e2e8f0;
+            line-height: 1.6;
+            tab-size: 4;
+            transition: all 0.2s;
+            height: 100%;
+            width: 100%;
+        }
+
+        .tab-active {
+            border-bottom: 2px solid #6366f1;
+            color: #6366f1 !important;
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .glass-modal {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 h-screen flex flex-col">
+
+    <!-- En-tête -->
+    <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between z-10 flex-shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="bg-indigo-600 p-2 rounded-lg shadow-indigo-200 shadow-lg">
+                <i data-lucide="zap" class="text-white w-5 h-5 fill-white"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-black tracking-tight text-slate-900 leading-none">PWA FORGE</h1>
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Seigneur Bison Edition</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <button onclick="toggleModal('settingsModal')" class="flex items-center gap-2 px-3 py-2 hover:bg-slate-100 rounded-xl transition-all text-slate-600">
+                <i data-lucide="settings" class="w-5 h-5"></i>
+                <span class="text-xs font-bold hidden md:inline">Configuration</span>
+                <div id="statusDot" class="w-2 h-2 rounded-full bg-red-500"></div>
+            </button>
+            <div class="h-6 w-[1px] bg-slate-200"></div>
+            <button onclick="startDeploymentFlow()" id="mainDeployBtn" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-100">
+                <i data-lucide="rocket" class="w-4 h-4"></i>
+                Déployer
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-grow flex flex-col md:flex-row overflow-hidden">
+        
+        <aside class="w-full md:w-80 bg-white border-r border-slate-200 flex flex-col overflow-y-auto p-6 space-y-6 flex-shrink-0">
+            
+            <section class="space-y-4">
+                <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Identité</h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Nom de l'app</label>
+                        <input type="text" id="appName" value="Ma Super PWA" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Couleur Thème</label>
+                            <input type="color" id="themeColor" value="#6366f1" class="w-full h-10 p-1 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Splash Color</label>
+                            <input type="color" id="bgColor" value="#ffffff" class="w-full h-10 p-1 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="space-y-4">
+                <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Assets</h3>
+                <div class="space-y-3">
+                    <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Icône Source</label>
+                    <input type="file" id="iconInput" accept="image/*" class="hidden" onchange="handleImage(event)">
+                    <label for="iconInput" id="dropZone" class="flex flex-col items-center justify-center w-full aspect-square bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition-all overflow-hidden relative">
+                        <div id="emptyIconState" class="flex flex-col items-center text-slate-400">
+                            <i data-lucide="image-plus" class="w-8 h-8 mb-2"></i>
+                            <span class="text-[10px] font-bold">Choisir une image</span>
+                        </div>
+                        <img id="iconPreview" class="hidden absolute inset-0 w-full h-full object-cover">
+                    </label>
+                </div>
+            </section>
+
+            <section class="pt-4 border-t border-slate-100">
+                <button onclick="generatePWA('zip')" class="w-full flex items-center justify-center gap-2 py-3 px-4 text-slate-600 hover:bg-slate-100 font-bold text-xs rounded-xl transition-all uppercase tracking-wide">
+                    <i data-lucide="archive" class="w-4 h-4"></i>
+                    Exporter en ZIP
+                </button>
+            </section>
+
+            <!-- Console de statut -->
+            <div id="consoleWrapper" class="hidden flex flex-col flex-shrink-0">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Console de Forge</span>
+                    <i data-lucide="loader-2" id="consoleLoader" class="w-3 h-3 animate-spin text-indigo-600 hidden"></i>
+                </div>
+                <div id="statusLogs" class="bg-slate-900 rounded-xl p-3 h-40 overflow-y-auto text-[9px] code-font text-slate-300 space-y-1 shadow-inner"></div>
+            </div>
+        </aside>
+
+        <!-- Zone d'Édition -->
+        <section class="flex-grow flex flex-col bg-slate-900 overflow-hidden">
+            <div class="flex bg-slate-800 border-b border-slate-950 flex-shrink-0">
+                <button onclick="setTab('html')" id="tab-html" class="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 transition-all border-b-2 border-transparent">Index.html</button>
+                <button onclick="setTab('readme')" id="tab-readme" class="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 transition-all border-b-2 border-transparent">README.md</button>
+            </div>
+            <div class="flex-grow editor-container overflow-hidden">
+                <textarea id="editor" spellcheck="false" class="p-6 outline-none resize-none code-font text-sm" placeholder="Écrivez votre code ici..."></textarea>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modale de Configuration -->
+    <div id="settingsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="toggleModal('settingsModal')"></div>
+        <div class="glass-modal bg-white w-full max-w-md rounded-[32px] shadow-2xl p-8 relative overflow-hidden border border-white">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-black text-slate-900">CONFIGURATION</h2>
+                <button onclick="toggleModal('settingsModal')" class="p-2 hover:bg-slate-100 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <div class="space-y-6">
+                <div class="space-y-2">
+                    <div class="flex justify-between items-end">
+                        <label class="text-[10px] font-black text-slate-400 uppercase">GitHub Token</label>
+                        <a href="https://github.com/settings/tokens/new?scopes=repo&description=PWA-Forge" target="_blank" class="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-1">
+                            Obtenir <i data-lucide="external-link" class="w-3 h-3"></i>
+                        </a>
+                    </div>
+                    <div class="relative">
+                        <i data-lucide="github" class="absolute left-3 top-3 w-4 h-4 text-slate-400"></i>
+                        <input type="password" id="gh_token_input" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ghp_...">
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex justify-between items-end">
+                        <label class="text-[10px] font-black text-slate-400 uppercase">Vercel Token</label>
+                        <a href="https://vercel.com/account/tokens" target="_blank" class="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-1">
+                            Obtenir <i data-lucide="external-link" class="w-3 h-3"></i>
+                        </a>
+                    </div>
+                    <div class="relative">
+                        <i data-lucide="triangle" class="absolute left-3 top-3 w-4 h-4 text-slate-400"></i>
+                        <input type="password" id="v_token_input" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500" placeholder="vrc_...">
+                    </div>
+                </div>
+
+                <button onclick="saveSettings()" class="w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-black transition-all shadow-xl shadow-slate-200 uppercase tracking-widest text-xs">
+                    Sauvegarder
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas" class="hidden"></canvas>
+
+    <script>
+        lucide.createIcons();
+
+        const state = {
+            tab: 'html',
+            iconFile: null,
+            codes: {
+                html: "<!-- VOTRE CODE ICI -->\n<div class=\"pwa-container\">\n  <h1>PWA Ready</h1>\n  <p>Déployée avec succès, Seigneur Bison.</p>\n</div>",
+                readme: "# Ma Super PWA\n\nGénérée avec **PWA Forge** — Seigneur Bison Edition.\n\n## Description\n\nDécrivez votre application ici.\n\n## Installation\n\n```bash\n# Cloner le dépôt\ngit clone <url>\n```\n\n## Licence\n\nMIT"
+            }
+        };
+
+        const editor = document.getElementById('editor');
+        
+        function setTab(tabName) {
+            state.tab = tabName;
+            editor.value = state.codes[tabName];
+            document.querySelectorAll('[id^="tab-"]').forEach(btn => btn.classList.remove('tab-active'));
+            const activeTab = document.getElementById("tab-" + tabName);
+            if (activeTab) activeTab.classList.add('tab-active');
+        }
+        setTab('html');
+
+        editor.addEventListener('input', () => {
+            state.codes[state.tab] = editor.value;
+        });
+
+        function loadSettings() {
+            const gh = localStorage.getItem('pwa_forge_gh');
+            const v = localStorage.getItem('pwa_forge_v');
+            document.getElementById('gh_token_input').value = gh || '';
+            document.getElementById('v_token_input').value = v || '';
+            const statusDot = document.getElementById('statusDot');
+            if (statusDot) statusDot.className = (gh && v) ? 'w-2 h-2 rounded-full bg-green-500' : 'w-2 h-2 rounded-full bg-red-500';
+        }
+        loadSettings();
+
+        function toggleModal(id) {
+            const m = document.getElementById(id);
+            if (m) m.classList.toggle('hidden');
+        }
+
+        function saveSettings() {
+            localStorage.setItem('pwa_forge_gh', document.getElementById('gh_token_input').value.trim());
+            localStorage.setItem('pwa_forge_v', document.getElementById('v_token_input').value.trim());
+            loadSettings();
+            toggleModal('settingsModal');
+        }
+
+        function handleImage(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            state.iconFile = file;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const preview = document.getElementById('iconPreview');
+                const empty = document.getElementById('emptyIconState');
+                if (preview) { preview.src = ev.target.result; preview.classList.remove('hidden'); }
+                if (empty) empty.classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // -- LOGS --
+        function addLog(msg, type = 'info') {
+            const wrapper = document.getElementById('statusLogs');
+            if (!wrapper) return;
+            const log = document.createElement('div');
+            const colors = { error: 'text-red-400 font-bold', success: 'text-green-400 font-bold', warn: 'text-yellow-400' };
+            if (colors[type]) log.className = colors[type];
+            log.textContent = '> ' + msg;
+            wrapper.appendChild(log);
+            wrapper.scrollTop = wrapper.scrollHeight;
+        }
+
+        // -- ICÔNES --
+        function generateIcon(size) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.getElementById('canvas');
+                    canvas.width = size; canvas.height = size;
+                    const ctx = canvas.getContext('2d');
+                    const s = Math.min(img.width, img.height);
+                    ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size);
+                    canvas.toBlob(resolve, 'image/png');
+                };
+                img.src = URL.createObjectURL(state.iconFile);
+            });
+        }
+
+        // Convertit un Blob en base64 (sans le préfixe data:...)
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        // Encode une chaîne UTF-8 en base64 (compatibilité caractères non-ASCII)
+        function strToBase64(str) {
+            return btoa(unescape(encodeURIComponent(str)));
+        }
+
+        // -- ASSEMBLAGE --
+        async function prepareProjectFiles() {
+            const appName = document.getElementById('appName').value || 'Ma PWA';
+            const theme = document.getElementById('themeColor').value;
+            const bg = document.getElementById('bgColor').value;
+
+            const i192 = await generateIcon(192);
+            const i512 = await generateIcon(512);
+
+            const manifest = {
+                name: appName,
+                short_name: appName.substring(0, 12),
+                start_url: '/',
+                display: 'standalone',
+                background_color: bg,
+                theme_color: theme,
+                icons: [
+                    { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+                    { src: 'icon-512.png', sizes: '512x512', type: 'image/png' }
+                ]
+            };
+
+            const htmlContent = [
+                '<!DOCTYPE html><html lang="fr"><head>',
+                '<meta charset="UTF-8">',
+                '<meta name="viewport" content="width=device-width,initial-scale=1">',
+                `<title>${appName}</title>`,
+                '<link rel="manifest" href="/manifest.json">',
+                `<meta name="theme-color" content="${theme}">`,
+                '</head><body>',
+                state.codes.html,
+                '<script>',
+                'if ("serviceWorker" in navigator) {',
+                '  window.addEventListener("load", () => {',
+                '    navigator.serviceWorker.register("/sw.js").catch(e => console.warn("SW:", e));',
+                '  });',
+                '}',
+                '<\/script></body></html>'
+            ].join('');
+
+            const swContent = [
+                "const C='pwa-v1';",
+                "self.addEventListener('install',e=>e.waitUntil(",
+                "  caches.open(C).then(c=>c.addAll(['/','/index.html','/manifest.json']))",
+                "));",
+                "self.addEventListener('fetch',e=>e.respondWith(",
+                "  caches.match(e.request).then(r=>r||fetch(e.request))",
+                "));"
+            ].join('');
+
+            // Met à jour le README avec le nom réel de l'app
+            const readmeContent = state.codes.readme.replace(/^# .*/m, `# ${appName}`);
+
+            return {
+                'index.html':    { content: htmlContent, binary: false },
+                'manifest.json': { content: JSON.stringify(manifest, null, 2), binary: false },
+                'sw.js':         { content: swContent, binary: false },
+                'README.md':     { content: readmeContent, binary: false },
+                'icon-192.png':  { content: i192, binary: true },
+                'icon-512.png':  { content: i512, binary: true }
+            };
+        }
+
+        // -- ZIP --
+        async function generatePWA(mode) {
+            if (!state.iconFile) return alert('Veuillez fournir une icône.');
+            const files = await prepareProjectFiles();
+
+            if (mode === 'zip') {
+                const zip = new JSZip();
+                for (const [name, { content }] of Object.entries(files)) zip.file(name, content);
+                const blob = await zip.generateAsync({ type: 'blob' });
+                saveAs(blob, 'pwa-project.zip');
+                addLog('Export ZIP terminé.', 'success');
+            }
+            return files;
+        }
+
+        // ============================================================
+        //  API FETCH DIRECT — sans proxy (GitHub & Vercel supportent CORS)
+        // ============================================================
+        async function apiFetch(url, options = {}) {
+            const response = await fetch(url, options);
+            const text = await response.text();
+            let data;
+            try { data = JSON.parse(text); } catch { data = { message: text }; }
+
+            if (!response.ok) {
+                const msg = data?.message || data?.error?.message || `HTTP ${response.status}`;
+                throw new Error(`[${response.status}] ${msg}`);
+            }
+            return data;
+        }
+
+        // Slugifie le nom de l'app pour en faire un nom de dépôt valide
+        function slugify(str) {
+            return str
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // retire les accents
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')   // remplace les caractères spéciaux par -
+                .replace(/^-+|-+$/g, '')        // retire les - en début/fin
+                || 'pwa-app';
+        }
+
+        // Vérifie si un repo GitHub existe déjà
+        async function repoExists(token, username, repoName) {
+            const res = await fetch(`https://api.github.com/repos/${username}/${repoName}`, {
+                headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+            });
+            return res.status === 200;
+        }
+
+        // Résout un nom de dépôt disponible (ajoute la date si déjà pris)
+        async function resolveRepoName(token, username, appName) {
+            const base = slugify(appName);
+            if (!(await repoExists(token, username, base))) return base;
+            const dated = `${base}-${new Date().toISOString().slice(0,10).replace(/-/g,'')}`;
+            if (!(await repoExists(token, username, dated))) return dated;
+            // En dernier recours : timestamp complet
+            return `${base}-${Date.now()}`;
+        }
+        async function getGitHubUser(token) {
+            return apiFetch('https://api.github.com/user', {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+        }
+
+        // -- GITHUB : crée un dépôt public --
+        async function createGitHubRepo(token, repoName) {
+            return apiFetch('https://api.github.com/user/repos', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name: repoName, private: false, auto_init: false })
+            });
+        }
+
+        // -- GITHUB : pousse un fichier dans le dépôt --
+        async function pushFileToGitHub(token, fullRepoName, filePath, base64Content, sha = null) {
+            const body = { message: `feat: add ${filePath}`, content: base64Content };
+            if (sha) body.sha = sha;
+            return apiFetch(`https://api.github.com/repos/${fullRepoName}/contents/${filePath}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            });
+        }
+
+        // ============================================================
+        //  VERCEL : déploiement direct par fichiers (sans gitSource)
+        //  Utilise l'API v13 avec tableau "files" inline
+        // ============================================================
+        async function deployToVercel(token, projectName, files) {
+            // Prépare les fichiers au format attendu par l'API Vercel
+            const vercelFiles = [];
+            for (const [name, { content, binary }] of Object.entries(files)) {
+                let data;
+                if (binary) {
+                    data = await blobToBase64(content);
+                    // Vercel attend les binaires en base64 avec l'encoding indiqué
+                    vercelFiles.push({ file: name, data, encoding: 'base64' });
+                } else {
+                    vercelFiles.push({ file: name, data: content });
+                }
+            }
+
+            return apiFetch('https://api.vercel.com/v13/deployments', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: projectName,
+                    files: vercelFiles,
+                    projectSettings: { framework: null, outputDirectory: null }
+                })
+            });
+        }
+
+        // -- POLL Vercel jusqu'à ce que le déploiement soit prêt --
+        async function waitForVercelDeployment(token, deploymentId, maxAttempts = 20) {
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 3000));
+                const data = await apiFetch(`https://api.vercel.com/v13/deployments/${deploymentId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const st = data.status || data.readyState;
+                addLog(`Vercel : statut = ${st}`);
+                if (st === 'READY') return data;
+                if (st === 'ERROR' || st === 'CANCELED') throw new Error(`Déploiement Vercel échoué (${st})`);
+            }
+            throw new Error('Timeout : le déploiement Vercel prend trop de temps.');
+        }
+
+        // -- FLUX PRINCIPAL --
+        async function startDeploymentFlow() {
+            const gh = localStorage.getItem('pwa_forge_gh');
+            const v  = localStorage.getItem('pwa_forge_v');
+            if (!gh || !v) { alert("Configurez vos tokens d'abord !"); toggleModal('settingsModal'); return; }
+            if (!state.iconFile) return alert('Une icône est requise pour la forge.');
+
+            const btn = document.getElementById('mainDeployBtn');
+            const consoleArea = document.getElementById('consoleWrapper');
+            const loader = document.getElementById('consoleLoader');
+
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+            consoleArea.classList.remove('hidden');
+            document.getElementById('statusLogs').innerHTML = '';
+            loader.classList.remove('hidden');
+
+            try {
+                // 0. Vérification du token GitHub
+                addLog('GitHub : vérification du token...');
+                const ghUser = await getGitHubUser(gh);
+                addLog(`GitHub : connecté en tant que ${ghUser.login}`);
+
+                // 1. Création du dépôt
+                const appName = document.getElementById('appName').value || 'Ma PWA';
+                const repoName = await resolveRepoName(gh, ghUser.login, appName);
+                addLog(`GitHub : création du dépôt "${repoName}"...`);
+                const repoData = await createGitHubRepo(gh, repoName);
+                addLog(`GitHub : dépôt créé → ${repoData.html_url}`);
+
+                // 2. Push des fichiers
+                const files = await prepareProjectFiles();
+                for (const [name, { content, binary }] of Object.entries(files)) {
+                    addLog(`GitHub : envoi de ${name}...`);
+                    const b64 = binary ? await blobToBase64(content) : strToBase64(content);
+                    await pushFileToGitHub(gh, repoData.full_name, name, b64);
+                }
+                addLog('GitHub : tous les fichiers sont synchronisés.', 'success');
+
+                // 3. Déploiement Vercel (fichiers directs, sans dépendance GitHub)
+                addLog('Vercel : envoi des fichiers en déploiement direct...');
+                const vData = await deployToVercel(v, repoName, files);
+                addLog(`Vercel : déploiement initié (id: ${vData.id})`);
+
+                // 4. Attente de la mise en ligne
+                addLog('Vercel : en attente de la mise en ligne...');
+                const ready = await waitForVercelDeployment(v, vData.id);
+                const liveUrl = 'https://' + (ready.url || ready.alias?.[0] || vData.url);
+
+                addLog('--- MISSION ACCOMPLIE ---', 'success');
+                addLog('URL LIVE : ' + liveUrl, 'success');
+                setTimeout(() => window.open(liveUrl, '_blank'), 1500);
+
+            } catch (err) {
+                addLog('ÉCHEC : ' + err.message, 'error');
+                console.error('[PWA Forge]', err);
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+                loader.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html><script>if ("serviceWorker" in navigator) {  window.addEventListener("load", () => {    navigator.serviceWorker.register("/sw.js").catch(e => console.warn("SW:", e));  });}</script></body></html>
