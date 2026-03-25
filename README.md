@@ -53,3 +53,10 @@ Pour utiliser le déploiement automatisé, vous devez fournir :
 2.  Téléchargez une image source pour l'icône.
 3.  Modifiez votre `index.html` directement dans l'éditeur intégré.
 4.  Cliquez sur **"Déployer"** pour lancer le flux automatisé.
+
+---
+
+## Todo
+- Connecter le repo github te l'hebergement vercel automatiquement
+- Renvoyer le bon lien dans la console et l'afficher joliment sur le site
+- Détecter automatiquement les couleurs de l'icone pour en faire les couleurs de la pwa
