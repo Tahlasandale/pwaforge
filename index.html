@@ -59,20 +59,20 @@
             </div>
             <div>
                 <h1 class="text-lg font-black tracking-tight text-slate-900 leading-none">PWA FORGE</h1>
-                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Seigneur Bison Edition</span>
-            </div>
-        </div>
-
-        <div class="flex items-center gap-4">
-            <button onclick="toggleModal('settingsModal')" class="flex items-center gap-2 px-3 py-2 hover:bg-slate-100 rounded-xl transition-all text-slate-600">
+        <div class="flex items-center gap-2 sm:gap-4">
+            <button onclick="toggleModal('settingsModal')" class="flex items-center gap-2 px-2 sm:px-3 py-2 hover:bg-slate-100 rounded-xl transition-all text-slate-600">
                 <i data-lucide="settings" class="w-5 h-5"></i>
                 <span class="text-xs font-bold hidden md:inline">Configuration</span>
                 <div id="statusDot" class="w-2 h-2 rounded-full bg-red-500"></div>
             </button>
-            <div class="h-6 w-[1px] bg-slate-200"></div>
-            <button onclick="startDeploymentFlow()" id="mainDeployBtn" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-100">
+            <div class="h-6 w-[1px] bg-slate-200 hidden sm:block"></div>
+            <button onclick="generatePWA('zip')" class="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-3 sm:px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Exporter</span>
+            </button>
+            <button onclick="startDeploymentFlow()" id="mainDeployBtn" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 sm:px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-100">
                 <i data-lucide="rocket" class="w-4 h-4"></i>
-                Déployer
+                <span class="hidden sm:inline">Déployer</span>
             </button>
         </div>
     </header>
