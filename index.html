@@ -11,7 +11,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap');
         
-        body { font-family: 'Inter', sans-serif; overflow: hidden; }
+        body { font-family: 'Inter', sans-serif; }
         .code-font { font-family: 'Fira Code', monospace; }
         
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -49,7 +49,7 @@
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-900 flex flex-col md:h-screen md:overflow-hidden">
 
     <!-- En-tête -->
     <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between z-10 flex-shrink-0">
@@ -77,9 +77,9 @@
         </div>
     </header>
 
-    <main class="flex-grow flex flex-col md:flex-row overflow-hidden">
+    <main class="flex-grow flex flex-col md:flex-row md:overflow-hidden">
         
-        <aside class="w-full md:w-80 bg-white border-r border-slate-200 flex flex-col overflow-y-auto p-6 space-y-6 flex-shrink-0">
+        <aside class="w-full md:w-80 bg-white border-b md:border-b-0 md:border-r border-slate-200 flex flex-col md:overflow-y-auto p-6 space-y-6 flex-shrink-0">
             
             <section class="space-y-4">
                 <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Identité</h3>
@@ -134,7 +134,7 @@
         </aside>
 
         <!-- Zone d'Édition -->
-        <section class="flex-grow flex flex-col bg-slate-900 overflow-hidden">
+        <section class="flex-grow flex flex-col bg-slate-900 md:overflow-hidden min-h-[60vh] md:min-h-0">
             <div class="flex bg-slate-800 border-b border-slate-950 flex-shrink-0">
                 <button onclick="setTab('html')" id="tab-html" class="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 transition-all border-b-2 border-transparent">Index.html</button>
                 <button onclick="setTab('readme')" id="tab-readme" class="px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 transition-all border-b-2 border-transparent">README.md</button>
@@ -435,6 +435,8 @@
             const theme = document.getElementById('themeColor').value;
             const bg = document.getElementById('bgColor').value;
 
+            // Génération des différentes tailles dont le favicon
+            const favicon = await generateIcon(32);
             const i192 = await generateIcon(192);
             const i512 = await generateIcon(512);
 
@@ -456,6 +458,7 @@
                 '<meta charset="UTF-8">',
                 '<meta name="viewport" content="width=device-width,initial-scale=1">',
                 `<title>${appName}</title>`,
+                '<link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">',
                 '<link rel="manifest" href="/manifest.json">',
                 `<meta name="theme-color" content="${theme}">`,
                 '</head><body>',
@@ -472,7 +475,7 @@
             const swContent = [
                 "const C='pwa-v1';",
                 "self.addEventListener('install',e=>e.waitUntil(",
-                "  caches.open(C).then(c=>c.addAll(['/','/index.html','/manifest.json']))",
+                "  caches.open(C).then(c=>c.addAll(['/','/index.html','/manifest.json','/favicon.png']))",
                 "));",
                 "self.addEventListener('fetch',e=>e.respondWith(",
                 "  caches.match(e.request).then(r=>r||fetch(e.request))",
@@ -486,6 +489,7 @@
                 'manifest.json': { content: JSON.stringify(manifest, null, 2), binary: false },
                 'sw.js':         { content: swContent, binary: false },
                 'README.md':     { content: readmeContent, binary: false },
+                'favicon.png':   { content: favicon, binary: true },
                 'icon-192.png':  { content: i192, binary: true },
                 'icon-512.png':  { content: i512, binary: true }
             };
@@ -581,7 +585,8 @@
             });
         }
 
-        async function deployToVercel(token, projectName, files) {
+        // Fonction de déploiement direct (Fallback si la liaison Git échoue)
+        async function deployToVercelDirect(token, projectName, files) {
             const vercelFiles = [];
             for (const [name, { content, binary }] of Object.entries(files)) {
                 let data;
@@ -639,19 +644,18 @@
             loader.classList.remove('hidden');
 
             try {
-                // 0. Vérification du token GitHub
+                // 1. Vérification du token GitHub
                 addLog('GitHub : vérification du token...');
                 const ghUser = await getGitHubUser(gh);
                 addLog(`GitHub : connecté en tant que ${ghUser.login}`);
 
-                // 1. Création du dépôt
+                // 2. Création du dépôt & Push des fichiers
                 const appName = document.getElementById('appName').value || 'Ma PWA';
                 const repoName = await resolveRepoName(gh, ghUser.login, appName);
                 addLog(`GitHub : création du dépôt "${repoName}"...`);
                 const repoData = await createGitHubRepo(gh, repoName);
                 addLog(`GitHub : dépôt créé → ${repoData.html_url}`);
 
-                // 2. Push des fichiers
                 const files = await prepareProjectFiles();
                 for (const [name, { content, binary }] of Object.entries(files)) {
                     addLog(`GitHub : envoi de ${name}...`);
@@ -660,31 +664,66 @@
                 }
                 addLog('GitHub : tous les fichiers sont synchronisés.', 'success');
 
-                // 3. Déploiement Vercel direct
-                addLog('Vercel : envoi des fichiers en déploiement direct...');
-                const vData = await deployToVercel(v, repoName, files);
-                addLog(`Vercel : déploiement initié (id: ${vData.id})`);
+                // 3. Création du projet Vercel et liaison native GitHub
+                addLog('Vercel : Création du projet et configuration de la source GitHub...');
+                let vProject;
+                try {
+                    vProject = await apiFetch('https://api.vercel.com/v9/projects', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${v}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: repoName,
+                            gitRepository: { type: 'github', repo: repoData.full_name }
+                        })
+                    });
+                    addLog(`Vercel : Projet lié avec succès à GitHub (ID: ${vProject.id})`, 'success');
+                } catch (createErr) {
+                    addLog('Vercel : Le projet existe peut-être déjà, tentative de mise à jour...', 'warn');
+                    try {
+                        vProject = await apiFetch(`https://api.vercel.com/v9/projects/${repoName}`, {
+                            headers: { 'Authorization': `Bearer ${v}` }
+                        });
+                        await apiFetch(`https://api.vercel.com/v9/projects/${vProject.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Authorization': `Bearer ${v}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ gitRepository: { type: 'github', repo: repoData.full_name } })
+                        });
+                        addLog(`Vercel : Projet existant mis à jour avec la source GitHub.`, 'success');
+                    } catch (patchErr) {
+                        addLog(`Vercel : Impossible de forcer la liaison GitHub (${patchErr.message}). L'application Vercel est-elle autorisée sur votre compte GitHub ?`, 'warn');
+                    }
+                }
 
-                // 4. Attente de la mise en ligne
+                // 4. Déploiement Vercel
+                addLog('Vercel : Déclenchement du déploiement...');
+                let vData;
+                try {
+                    // Tentative de déploiement propre depuis la source GitHub
+                    vData = await apiFetch('https://api.vercel.com/v13/deployments', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${v}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: repoName,
+                            projectSettings: { framework: null },
+                            gitSource: {
+                                type: 'github',
+                                repoId: repoData.id,
+                                ref: repoData.default_branch || 'main'
+                            }
+                        })
+                    });
+                    addLog(`Vercel : Déploiement initié depuis GitHub (id: ${vData.id})`, 'success');
+                } catch (gitDeployErr) {
+                    // Fallback en cas d'absence des autorisations requises par l'application GitHub de Vercel
+                    addLog(`Vercel : Déploiement GitHub échoué (${gitDeployErr.message}). Fallback sur le déploiement direct des fichiers...`, 'warn');
+                    vData = await deployToVercelDirect(v, repoName, files);
+                    addLog(`Vercel : Déploiement direct initié (id: ${vData.id})`);
+                }
+
+                // 5. Attente de la mise en ligne
                 addLog('Vercel : en attente de la mise en ligne...');
                 const ready = await waitForVercelDeployment(v, vData.id);
                 const liveUrl = 'https://' + (ready.url || ready.alias?.[0] || vData.url);
-
-                // 5. LIAISON GITHUB <-> VERCEL (Pour le CI/CD automatique)
-                addLog('Vercel : tentative de liaison automatique du dépôt GitHub...');
-                try {
-                    // Utiliser le nom du projet créé par Vercel ou repoName en fallback
-                    const vProjectName = vData.name || repoName;
-                    await apiFetch(`https://api.vercel.com/v9/projects/${vProjectName}`, {
-                        method: 'PATCH',
-                        headers: { 'Authorization': `Bearer ${v}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ gitRepository: { type: 'github', repo: repoData.full_name } })
-                    });
-                    addLog('Vercel : Dépôt lié avec succès ! Les futurs push se déploieront automatiquement.', 'success');
-                } catch (linkErr) {
-                    addLog('Note: La liaison automatique a échoué. Assurez-vous que l\'App Vercel est autorisée sur vos dépôts GitHub.', 'warn');
-                    console.warn("Liaison Github-Vercel échouée:", linkErr);
-                }
 
                 addLog('--- MISSION ACCOMPLIE SEIGNEUR BISON ---', 'success');
                 addLog('URL LIVE : ' + liveUrl, 'success');
